@@ -1,4 +1,4 @@
-package io.github.orionlibs.project_name;
+package io.github.orionlibs.orion_ml4j;
 
 import java.io.IOException;
 import java.util.TimeZone;
