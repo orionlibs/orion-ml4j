@@ -3,6 +3,7 @@ package io.github.orionlibs.orion_ml4j.regression;
 import io.github.orionlibs.orion_assert.Assert;
 import io.github.orionlibs.orion_runnable.functions.OrionFunction1x1;
 import io.github.orionlibs.orion_simple_math.statistics.ArithmeticMean;
+import io.github.orionlibs.orion_simple_math.statistics.Variance;
 import io.github.orionlibs.orion_tuple.Pair;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,11 +22,14 @@ public class LinearRegression
     private float yMean;
     private float numerator;
     private float denominator;
+    private List<Float> residuals;
+    private float modelError;
 
 
-    public LinearRegression(List<Pair<Float, Float>> pairsOfInputsOutputsTrainingData)
+    public LinearRegression(List<Pair<Float, Float>> pairsOfInputsOutputsTrainingData, float modelError)
     {
         Assert.notEmpty(pairsOfInputsOutputsTrainingData, "input cannot be empty");
+        this.modelError = modelError;
         this.pairsOfInputsOutputsTrainingData = pairsOfInputsOutputsTrainingData;
         this.inputs = pairsOfInputsOutputsTrainingData.stream()
                         .map(pair -> pair.getFirst())
@@ -38,7 +42,16 @@ public class LinearRegression
     }
 
 
-    public void run()
+    private void runIfItHasNotRunYet()
+    {
+        if(!hasRegressionRun)
+        {
+            train();
+        }
+    }
+
+
+    public void train()
     {
         xMean = new ArithmeticMean().getMean(inputs);
         yMean = new ArithmeticMean().getMean(outputs);
@@ -52,22 +65,26 @@ public class LinearRegression
         }
         slope = numerator / denominator;
         intercept = yMean - (slope * xMean);
-        modelFunction = (Float x) -> intercept + (slope * x);
+        modelFunction = (Float x) -> intercept + (slope * x) + modelError;
+        residuals = new ArrayList<>();
+        for(int i = 0; i < inputs.size(); i++)
+        {
+            residuals.add(outputs.get(i) - modelFunction.run(inputs.get(i)));
+        }
         hasRegressionRun = true;
+    }
+
+
+    public float run(float x)
+    {
+        runIfItHasNotRunYet();
+        return modelFunction.run(x);
     }
 
 
     public List<Float> getResiduals()
     {
-        if(!hasRegressionRun)
-        {
-            run();
-        }
-        List<Float> residuals = new ArrayList<>();
-        for(int i = 0; i < inputs.size(); i++)
-        {
-            residuals.add(outputs.get(i) - modelFunction.run(inputs.get(i)));
-        }
+        runIfItHasNotRunYet();
         return residuals;
     }
 
@@ -75,6 +92,74 @@ public class LinearRegression
     public float getResidualSumOfSquares()
     {
         return getResiduals().stream().reduce(0.0f, (a, b) -> a + b);
+    }
+
+
+    public float getStandardErrorOfOutputsMean()
+    {
+        runIfItHasNotRunYet();
+        return (float)Math.sqrt(Variance.getPopulationVariance(outputs));
+    }
+
+
+    public float getStandardErrorOfIntercept()
+    {
+        runIfItHasNotRunYet();
+        float sum = 0.0f;
+        for(int i = 0; i < inputs.size(); i++)
+        {
+            float xMinusMean = (inputs.get(i) - xMean);
+            sum += xMinusMean * xMinusMean;
+        }
+        float variance = (float)Math.sqrt(Variance.getPopulationVariance(residuals));
+        return (float)Math.sqrt(variance * (sum + (xMean * xMean)) / (inputs.size() * sum));
+    }
+
+
+    public float getStandardErrorOfSlope()
+    {
+        runIfItHasNotRunYet();
+        float sum = 0.0f;
+        for(int i = 0; i < inputs.size(); i++)
+        {
+            float xMinusMean = (inputs.get(i) - xMean);
+            sum += xMinusMean * xMinusMean;
+        }
+        float variance = (float)Math.sqrt(Variance.getPopulationVariance(residuals));
+        return (float)Math.sqrt(variance / sum);
+    }
+
+
+    public float getResidualStandardError()
+    {
+        return (float)Math.sqrt(getResidualSumOfSquares() / (inputs.size() - 2));
+    }
+
+
+    public float getTStatistic()
+    {
+        runIfItHasNotRunYet();
+        return slope / getStandardErrorOfSlope();
+    }
+
+
+    public float getTotalSumOfSquares()
+    {
+        runIfItHasNotRunYet();
+        float sum = 0.0f;
+        for(int i = 0; i < inputs.size(); i++)
+        {
+            float yMinusMean = (outputs.get(i) - yMean);
+            sum += yMinusMean * yMinusMean;
+        }
+        return sum;
+    }
+
+
+    public float getRSquaredStatistic()
+    {
+        float tss = getTotalSumOfSquares();
+        return 1 - (getResidualSumOfSquares() / tss);
     }
 
 
