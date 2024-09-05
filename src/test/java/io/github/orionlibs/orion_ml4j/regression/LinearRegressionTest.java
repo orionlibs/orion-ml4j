@@ -1,7 +1,8 @@
-package io.github.orionlibs.orion_ml4j;
+package io.github.orionlibs.orion_ml4j.regression;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.orionlibs.orion_ml4j.ATest;
 import io.github.orionlibs.orion_simple_math.random.RandomNumberGenerationService;
 import io.github.orionlibs.orion_tuple.Pair;
 import java.util.ArrayList;
